@@ -1,0 +1,4 @@
+backend_private_ip: "10.20.1.18"
+mysql_fqdn: "epicbook-mysql.c32ymoqg6fvs.eu-north-1.rds.amazonaws.com"
+backend_app_port: 3000
+db_name: "bookstore"
