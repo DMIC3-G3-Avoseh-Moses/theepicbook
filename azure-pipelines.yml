@@ -1,19 +1,114 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- main
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - ansible/*
+      - azure-pipelines.yml
+      - server.js
+      - package.json
+      - routes/*
+      - models/*
+      - views/*
+      - public/*
+      - config/*
+      - db/*
 
-pool:
-  vmImage: ubuntu-latest
+variables:
+  - group: Epicbook-mysql-secrets
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+stages:
+  - stage: Prepare
+    displayName: Prepare
+    pool:
+      name: SelfHostedPool
+    jobs:
+      - job: PrepareJob
+        steps:
+          - checkout: self
+          - script: |
+              set -e
+              python3 -m venv $(Agent.TempDirectory)/venv
+              $(Agent.TempDirectory)/venv/bin/pip install ansible
+              $(Agent.TempDirectory)/venv/bin/ansible-galaxy collection install community.mysql ansible.posix
+            displayName: Install Ansible and collections
+          - task: DownloadSecureFile@1
+            name: sshKey
+            inputs:
+              secureFile: Mo.pem
+          - script: chmod 600 $(sshKey.secureFilePath)
+            displayName: Secure the key
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+  - stage: Validate
+    displayName: Validate
+    dependsOn: Prepare
+    pool:
+      name: SelfHostedPool
+    jobs:
+      - job: ValidateJob
+        steps:
+          - checkout: self
+          - script: |
+              set -e
+              python3 -m venv $(Agent.TempDirectory)/venv
+              $(Agent.TempDirectory)/venv/bin/pip install ansible
+              $(Agent.TempDirectory)/venv/bin/ansible-galaxy collection install community.mysql ansible.posix
+            displayName: Install Ansible and collections
+          - task: DownloadSecureFile@1
+            name: sshKey
+            inputs:
+              secureFile: Mo.pem
+          - script: |
+              set -e
+              chmod 600 $(sshKey.secureFilePath)
+              export ANSIBLE_HOST_KEY_CHECKING=False
+              A=$(Agent.TempDirectory)/venv/bin
+              $A/ansible-inventory -i ansible/inventory/hosts.ini --list > /dev/null
+              $A/ansible-playbook -i ansible/inventory/hosts.ini ansible/site.yml --syntax-check
+              $A/ansible -i ansible/inventory/hosts.ini all -m ping --private-key $(sshKey.secureFilePath)
+            displayName: Validate inventory, syntax and SSH connectivity
+
+  - stage: Deploy
+    displayName: Configure and Deploy
+    dependsOn: Validate
+    pool:
+      name: SelfHostedPool
+    jobs:
+      - job: DeployJob
+        steps:
+          - checkout: self
+          - script: |
+              set -e
+              python3 -m venv $(Agent.TempDirectory)/venv
+              $(Agent.TempDirectory)/venv/bin/pip install ansible
+              $(Agent.TempDirectory)/venv/bin/ansible-galaxy collection install community.mysql ansible.posix
+            displayName: Install Ansible and collections
+          - task: DownloadSecureFile@1
+            name: sshKey
+            inputs:
+              secureFile: Mo.pem
+          - script: |
+              set -e
+              chmod 600 $(sshKey.secureFilePath)
+              export ANSIBLE_HOST_KEY_CHECKING=False
+              $(Agent.TempDirectory)/venv/bin/ansible-playbook -i ansible/inventory/hosts.ini ansible/site.yml --private-key $(sshKey.secureFilePath) -e "db_admin_username=$DB_USER" -e "db_admin_password=$DB_PASS"
+            displayName: Run Ansible playbook
+            env:
+              DB_USER: $(mysqlAdminUsername)
+              DB_PASS: $(mysqlAdminPassword)
+
+  - stage: Verify
+    displayName: Verify
+    dependsOn: Deploy
+    pool:
+      name: SelfHostedPool
+    jobs:
+      - job: VerifyJob
+        steps:
+          - script: |
+              set -e
+              code=$(curl -s -o /dev/null -w "%{http_code}" http://16.16.183.30/)
+              echo "Frontend returned HTTP $code"
+              test "$code" = "200"
+            displayName: Check frontend responds
