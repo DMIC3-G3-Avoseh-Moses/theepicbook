@@ -37,7 +37,7 @@
     login_host: "{{ mysql_fqdn }}"
     login_user: "{{ db_admin_username }}"
     login_password: "{{ db_admin_password }}"
-  when: author_table_check.query[0].table_count | int == 0
+  when: author_table_check.query_result[0][0].table_count | int == 0
   no_log: true
 
 - name: Check if Author seed data already exists
@@ -58,7 +58,7 @@
     login_host: "{{ mysql_fqdn }}"
     login_user: "{{ db_admin_username }}"
     login_password: "{{ db_admin_password }}"
-  when: author_row_check.query[0].row_count | int == 0
+  when: author_row_check.query_result[0][0].row_count | int == 0
   no_log: true
 
 - name: Check if Book seed data already exists
@@ -79,5 +79,5 @@
     login_host: "{{ mysql_fqdn }}"
     login_user: "{{ db_admin_username }}"
     login_password: "{{ db_admin_password }}"
-  when: book_row_check.query[0].row_count | int == 0
+  when: book_row_check.query_result[0][0].row_count | int == 0
   no_log: true

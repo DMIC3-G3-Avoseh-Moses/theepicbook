@@ -47,7 +47,7 @@
     - name: Fail if Author table is empty
       ansible.builtin.fail:
         msg: "Author table has no rows - seed data import may have failed."
-      when: verify_author_count.query[0].row_count | int == 0
+      when: verify_author_count.query_result[0][0].row_count | int == 0
 
     - name: Count Book rows
       community.mysql.mysql_query:
@@ -62,7 +62,7 @@
     - name: Fail if Book table is empty
       ansible.builtin.fail:
         msg: "Book table has no rows - seed data import may have failed."
-      when: verify_book_count.query[0].row_count | int == 0
+      when: verify_book_count.query_result[0][0].row_count | int == 0
 
 - name: Verify frontend and end-to-end connectivity
   hosts: frontend
