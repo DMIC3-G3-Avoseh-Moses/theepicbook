@@ -108,7 +108,7 @@ stages:
         steps:
           - script: |
               set -e
-              code=$(curl -s -o /dev/null -w "%{http_code}" http://16.16.183.30/)
+              code=$(curl -s -o /dev/null -w "%{http_code}" http://16.16.186.69/)
               echo "Frontend returned HTTP $code"
               test "$code" = "200"
             displayName: Check frontend responds
